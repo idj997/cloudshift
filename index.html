@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CloudShift — Cross-Cloud Architecture Translator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #080c10;
+  --bg1:       #0d1219;
+  --bg2:       #111823;
+  --bg3:       #16202e;
+  --border:    #1e2d3d;
+  --border2:   #243445;
+  --cyan:      #00e5ff;
+  --cyan-dim:  #007a8a;
+  --green:     #39ff8f;
+  --amber:     #ffb830;
+  --red:       #ff4c6a;
+  --purple:    #a78bfa;
+  --text:      #c8d8e8;
+  --text2:     #7a92a8;
+  --text3:     #3d5268;
+  --aws:       #ff9900;
+  --azure:     #2ea3f2;
+  --gcp:       #34a853;
+  --mono:      'IBM Plex Mono', monospace;
+  --sans:      'IBM Plex Sans', sans-serif;
+  --r:         4px;
+  --r2:        8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px}
+
+/* ── GRID BACKGROUND ── */
+body::before{content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,255,0.03) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;z-index:0}
+
+/* ── LAYOUT ── */
+#app{position:relative;z-index:1;height:100%;display:grid;grid-template-rows:52px 1fr;grid-template-columns:260px 1fr 300px}
+
+/* ── TOPBAR ── */
+#topbar{grid-column:1/-1;display:flex;align-items:center;padding:0 20px;gap:20px;
+  background:rgba(8,12,16,0.95);border-bottom:1px solid var(--border2);backdrop-filter:blur(12px)}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo-mark{width:28px;height:28px;position:relative}
+.logo-mark svg{width:28px;height:28px}
+.logo-text{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--cyan);letter-spacing:1px}
+.logo-sub{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase}
+.topbar-divider{width:1px;height:28px;background:var(--border2);flex-shrink:0}
+
+/* Translation Source→Target in topbar */
+.translate-header{display:flex;align-items:center;gap:12px;flex:1;justify-content:center}
+.cloud-pill{display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;border:1px solid;cursor:pointer;font-family:var(--mono);font-size:12px;font-weight:500;transition:all .2s;user-select:none}
+.cloud-pill.aws{border-color:rgba(255,153,0,.3);color:var(--aws);background:rgba(255,153,0,.06)}
+.cloud-pill.aws.active,
+.cloud-pill.aws:hover{border-color:var(--aws);background:rgba(255,153,0,.12);box-shadow:0 0 12px rgba(255,153,0,.15)}
+.cloud-pill.azure{border-color:rgba(46,163,242,.3);color:var(--azure);background:rgba(46,163,242,.06)}
+.cloud-pill.azure.active,
+.cloud-pill.azure:hover{border-color:var(--azure);background:rgba(46,163,242,.12);box-shadow:0 0 12px rgba(46,163,242,.15)}
+.cloud-pill.gcp{border-color:rgba(52,168,83,.3);color:var(--gcp);background:rgba(52,168,83,.06)}
+.cloud-pill.gcp.active,
+.cloud-pill.gcp:hover{border-color:var(--gcp);background:rgba(52,168,83,.12);box-shadow:0 0 12px rgba(52,168,83,.15)}
+.cloud-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.aws .cloud-dot{background:var(--aws)}
+.azure .cloud-dot{background:var(--azure)}
+.gcp .cloud-dot{background:var(--gcp)}
+.translate-arrow{display:flex;align-items:center;gap:6px;color:var(--text3);font-size:11px;font-family:var(--mono)}
+.translate-arrow svg{color:var(--cyan-dim)}
+.swap-btn{width:30px;height:30px;border-radius:50%;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s}
+.swap-btn:hover{border-color:var(--cyan);color:var(--cyan);transform:rotate(180deg)}
+
+.topbar-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.btn{padding:6px 14px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:12px;font-family:var(--mono);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--border2);background:var(--bg2);color:var(--text)}
+.btn-cyan{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,.06)}
+.btn-cyan:hover{background:rgba(0,229,255,.12);box-shadow:0 0 14px rgba(0,229,255,.15)}
+.btn-green{border-color:var(--green);color:var(--green);background:rgba(57,255,143,.06)}
+.btn-green:hover{background:rgba(57,255,143,.1)}
+
+/* ── LEFT SIDEBAR: SERVICE LIBRARY ── */
+#sidebar-left{background:var(--bg1);border-right:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column}
+.sidebar-head{padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.sidebar-title{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px}
+.search{position:relative}
+.search input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:6px 10px 6px 30px;color:var(--text);font-size:12px;font-family:var(--mono);outline:none;transition:.15s}
+.search input:focus{border-color:var(--cyan-dim)}
+.search input::placeholder{color:var(--text3)}
+.search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3)}
+.cloud-filter{display:flex;gap:4px;margin-top:8px}
+.cf-btn{flex:1;padding:4px 0;border-radius:var(--r);border:1px solid var(--border);background:transparent;font-family:var(--mono);font-size:10px;font-weight:600;cursor:pointer;transition:.15s;text-align:center}
+.cf-btn.aws{color:var(--aws)}.cf-btn.aws.on{background:rgba(255,153,0,.1);border-color:var(--aws)}
+.cf-btn.azure{color:var(--azure)}.cf-btn.azure.on{background:rgba(46,163,242,.1);border-color:var(--azure)}
+.cf-btn.gcp{color:var(--gcp)}.cf-btn.gcp.on{background:rgba(52,168,83,.1);border-color:var(--gcp)}
+.services-list{flex:1;overflow-y:auto;padding:8px 0}
+.services-list::-webkit-scrollbar{width:3px}.services-list::-webkit-scrollbar-thumb{background:var(--border2)}
+.cat-label{padding:10px 16px 4px;font-family:var(--mono);font-size:9px;font-weight:600;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase}
+.svc{display:flex;align-items:center;gap:9px;padding:7px 16px;cursor:grab;transition:background .1s;border-left:2px solid transparent}
+.svc:hover{background:var(--bg2);border-left-color:var(--cyan-dim)}
+.svc:active{cursor:grabbing}
+.svc-icon{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.svc-info{flex:1;min-width:0}
+.svc-name{font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono)}
+.svc-tag{font-size:10px;color:var(--text3)}
+
+/* ── CANVAS ── */
+#canvas-wrap{position:relative;overflow:hidden;background:var(--bg)}
+#canvas-tools{position:absolute;top:12px;left:12px;z-index:10;display:flex;gap:4px;background:rgba(13,18,25,.9);border:1px solid var(--border2);border-radius:var(--r2);padding:4px;backdrop-filter:blur(8px)}
+.tool{width:30px;height:30px;border-radius:var(--r);border:none;background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:.15s}
+.tool:hover{background:var(--bg3);color:var(--text)}
+.tool.on{background:rgba(0,229,255,.1);color:var(--cyan)}
+.tool-sep{width:1px;height:22px;background:var(--border);margin:4px 2px}
+.zoom-val{font-family:var(--mono);font-size:10px;color:var(--text3);padding:0 6px;line-height:30px}
+
+#canvas{width:100%;height:100%;position:relative;cursor:default}
+#grid{position:absolute;width:4000px;height:3000px;left:0;top:0;transform-origin:0 0}
+#svg-layer{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+
+.canvas-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:.4}
+.canvas-hint svg{display:block;margin:0 auto 12px}
+.canvas-hint p{font-family:var(--mono);font-size:12px;color:var(--text2);line-height:1.8}
+
+/* ── NODES ── */
+.node{position:absolute;min-width:130px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);padding:10px 12px;cursor:move;user-select:none;transition:box-shadow .15s,border-color .15s}
+.node:hover{border-color:var(--border2);box-shadow:0 4px 24px rgba(0,0,0,.5)}
+.node.sel{border-color:var(--cyan) !important;box-shadow:0 0 0 2px rgba(0,229,255,.12),0 6px 28px rgba(0,0,0,.5)}
+.node.aws-node{border-top:2px solid var(--aws)}
+.node.azure-node{border-top:2px solid var(--azure)}
+.node.gcp-node{border-top:2px solid var(--gcp)}
+.node-del{position:absolute;top:5px;right:5px;width:16px;height:16px;border-radius:3px;border:none;background:transparent;color:var(--text3);cursor:pointer;font-size:10px;display:none;align-items:center;justify-content:center;line-height:1}
+.node:hover .node-del{display:flex}
+.node-del:hover{background:rgba(255,76,106,.15);color:var(--red)}
+.node-icon{font-size:20px;margin-bottom:5px}
+.node-name{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text);line-height:1.2}
+.node-svc{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:2px}
+.node-cloud-tag{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;margin-top:5px}
+.node-cloud-tag.aws{color:var(--aws);background:rgba(255,153,0,.1)}
+.node-cloud-tag.azure{color:var(--azure);background:rgba(46,163,242,.1)}
+.node-cloud-tag.gcp{color:var(--gcp);background:rgba(52,168,83,.1)}
+.node-ports{display:flex;justify-content:space-between;margin-top:8px}
+.port{width:8px;height:8px;border-radius:50%;border:1px solid var(--border2);background:var(--bg3);cursor:crosshair;transition:.12s}
+.port:hover{background:var(--cyan);border-color:var(--cyan);transform:scale(1.4)}
+
+/* Connection lines */
+.conn-path{fill:none;stroke:var(--border2);stroke-width:1.5;stroke-dasharray:5 4}
+.conn-arrow{fill:var(--border2)}
+
+/* ── RIGHT PANEL: TRANSLATION ── */
+#panel{background:var(--bg1);border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+#panel::-webkit-scrollbar{width:3px}
+#panel::-webkit-scrollbar-thumb{background:var(--border2)}
+.panel-section{border-bottom:1px solid var(--border);padding:16px}
+.panel-section:last-child{border-bottom:none}
+.ps-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:12px}
+
+/* Translation panel */
+.trans-flow{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.trans-cloud{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;text-align:center}
+.trans-cloud-name{font-family:var(--mono);font-size:11px;font-weight:600}
+.trans-cloud-count{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px}
+.trans-mid{color:var(--text3);font-size:18px;flex-shrink:0}
+.trans-btn{width:100%;padding:9px;border-radius:var(--r);border:1px solid;font-family:var(--mono);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px}
+.trans-btn.to-azure{color:var(--azure);border-color:rgba(46,163,242,.3);background:rgba(46,163,242,.05)}
+.trans-btn.to-azure:hover{border-color:var(--azure);background:rgba(46,163,242,.1);box-shadow:0 0 14px rgba(46,163,242,.1)}
+.trans-btn.to-gcp{color:var(--gcp);border-color:rgba(52,168,83,.3);background:rgba(52,168,83,.05)}
+.trans-btn.to-gcp:hover{border-color:var(--gcp);background:rgba(52,168,83,.1);box-shadow:0 0 14px rgba(52,168,83,.1)}
+.trans-btn.to-aws{color:var(--aws);border-color:rgba(255,153,0,.3);background:rgba(255,153,0,.05)}
+.trans-btn.to-aws:hover{border-color:var(--aws);background:rgba(255,153,0,.1)}
+
+/* Mapping results */
+.mapping-result{margin-top:12px;display:none}
+.mapping-result.show{display:block}
+.mr-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.mr-title{font-family:var(--mono);font-size:10px;color:var(--cyan);font-weight:600}
+.mr-apply{padding:3px 8px;border-radius:var(--r);border:1px solid var(--cyan-dim);background:rgba(0,229,255,.05);color:var(--cyan);font-size:10px;font-family:var(--mono);cursor:pointer;transition:.15s}
+.mr-apply:hover{background:rgba(0,229,255,.1)}
+.map-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;margin-bottom:5px;position:relative}
+.map-item.warn{border-color:rgba(255,184,48,.2)}
+.map-from{font-family:var(--mono);font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px}
+.map-to{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--green);display:flex;align-items:center;gap:5px;margin:3px 0}
+.map-note{font-size:10px;color:var(--text3)}
+.map-arrow-line{font-size:10px;color:var(--text3);padding-left:2px}
+.conf-badge{position:absolute;top:7px;right:8px;font-family:var(--mono);font-size:9px;padding:1px 5px;border-radius:3px}
+.conf-high{background:rgba(57,255,143,.1);color:var(--green)}
+.conf-med{background:rgba(255,184,48,.1);color:var(--amber)}
+.conf-low{background:rgba(255,76,106,.1);color:var(--red)}
+
+/* Properties panel */
+#props-panel{display:none}
+#props-panel.show{display:block}
+.props-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.props-close{background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:14px;line-height:1}
+.props-close:hover{color:var(--text)}
+.prop-svc-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:10px;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.prop-icon{font-size:22px}
+.prop-name{font-family:var(--mono);font-size:13px;font-weight:600}
+.prop-tf{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:2px}
+.prop-field{margin-bottom:10px}
+.prop-label{display:block;font-size:10px;font-family:var(--mono);color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.prop-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:6px 8px;color:var(--text);font-size:12px;font-family:var(--mono);outline:none;transition:.15s}
+.prop-input:focus{border-color:var(--cyan-dim)}
+.prop-select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:6px 8px;color:var(--text);font-size:12px;font-family:var(--mono);outline:none;cursor:pointer}
+.tf-snippet{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;font-family:var(--mono);font-size:10px;color:var(--cyan-dim);line-height:1.6;word-break:break-all}
+.tf-snippet .kw{color:var(--purple)}
+.tf-snippet .str{color:var(--green)}
+
+/* Stats bar */
+.stats-bar{padding:8px 16px;display:flex;gap:16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.stat{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.stat span{color:var(--text2);font-weight:600}
+
+/* ── TERRAFORM MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:flex;align-items:center;justify-content:center;display:none}
+.modal-bg.show{display:flex}
+.modal{background:var(--bg1);border:1px solid var(--border2);border-radius:var(--r2);width:700px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-top{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
+.modal-title{font-family:var(--mono);font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.modal-actions{display:flex;align-items:center;gap:6px}
+.modal-close{background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1}
+.modal-close:hover{color:var(--text)}
+.modal-tabs{display:flex;border-bottom:1px solid var(--border)}
+.mtab{padding:8px 16px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--text3);font-family:var(--mono);font-size:11px;cursor:pointer;transition:.15s;margin-bottom:-1px}
+.mtab.on{color:var(--cyan);border-bottom-color:var(--cyan)}
+.tf-body{flex:1;overflow-y:auto;background:var(--bg);padding:20px}
+.tf-body::-webkit-scrollbar{width:4px}.tf-body::-webkit-scrollbar-thumb{background:var(--border2)}
+#tf-pre{font-family:var(--mono);font-size:11.5px;line-height:1.8;color:var(--text);white-space:pre}
+.tk{color:var(--purple)} .ts{color:var(--green)} .tc{color:var(--text3);font-style:italic} .ta{color:var(--azure)} .tv{color:var(--amber)}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:8px 18px;font-family:var(--mono);font-size:12px;z-index:9999;transition:transform .3s cubic-bezier(.175,.885,.32,1.275),opacity .3s;opacity:0}
+.toast.in{transform:translateX(-50%) translateY(0);opacity:1}
+
+/* Animations */
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.node{animation:fadeIn .2s ease}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.loading{animation:pulse 1.4s infinite}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ── TOPBAR ── -->
+<header id="topbar">
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 28 28" fill="none">
+        <rect x="1" y="1" width="11" height="11" rx="2" stroke="#00e5ff" stroke-width="1.5"/>
+        <rect x="16" y="1" width="11" height="11" rx="2" stroke="#ff9900" stroke-width="1.5" opacity=".7"/>
+        <rect x="1" y="16" width="11" height="11" rx="2" stroke="#2ea3f2" stroke-width="1.5" opacity=".7"/>
+        <rect x="16" y="16" width="11" height="11" rx="2" stroke="#34a853" stroke-width="1.5" opacity=".7"/>
+        <line x1="12" y1="6.5" x2="16" y2="6.5" stroke="#00e5ff" stroke-width="1" opacity=".5"/>
+        <line x1="6.5" y1="12" x2="6.5" y2="16" stroke="#00e5ff" stroke-width="1" opacity=".5"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">CLOUDSHIFT</div>
+      <div class="logo-sub">Architecture Translator</div>
+    </div>
+  </div>
+
+  <div class="topbar-divider"></div>
+
+  <div class="translate-header">
+    <div id="src-cloud-pill" class="cloud-pill aws active" data-cloud="aws">
+      <div class="cloud-dot"></div>
+      <span id="src-label">AWS</span>
+    </div>
+    <div class="translate-arrow">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      translate
+    </div>
+    <div id="tgt-cloud-pill" class="cloud-pill azure active" data-cloud="azure">
+      <div class="cloud-dot"></div>
+      <span id="tgt-label">Azure</span>
+    </div>
+    <button id="swap-btn" class="swap-btn" title="Swap clouds">⇄</button>
+  </div>
+
+  <div class="topbar-divider"></div>
+
+  <div class="topbar-right">
+    <button class="btn btn-cyan" id="btn-tf">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="7" y="1" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="7" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="7" y="7" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
+      Terraform
+    </button>
+    <button class="btn btn-green" id="btn-clear-all">Clear</button>
+  </div>
+</header>
+
+<!-- ── LEFT SIDEBAR ── -->
+<aside id="sidebar-left">
+  <div class="sidebar-head">
+    <div class="sidebar-title">Service Library</div>
+    <div class="search">
+      <svg class="search-icon" width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 8l2.5 2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <input type="text" id="svc-search" placeholder="filter services...">
+    </div>
+    <div class="cloud-filter" style="margin-top:8px">
+      <button class="cf-btn aws on" data-cf="aws">AWS</button>
+      <button class="cf-btn azure on" data-cf="azure">Azure</button>
+      <button class="cf-btn gcp on" data-cf="gcp">GCP</button>
+    </div>
+  </div>
+  <div class="services-list" id="svc-list"></div>
+</aside>
+
+<!-- ── CANVAS ── -->
+<main id="canvas-wrap">
+  <div id="canvas-tools">
+    <button class="tool on" data-tool="select" title="Select (V)">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1l3.5 9 1.5-3.5L9.5 5 1 1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="tool" data-tool="connect" title="Connect (C)">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="2.5" cy="6" r="1.5" stroke="currentColor" stroke-width="1.2"/><circle cx="9.5" cy="6" r="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M4 6h4" stroke="currentColor" stroke-width="1.2"/></svg>
+    </button>
+    <div class="tool-sep"></div>
+    <button class="tool" id="t-undo" title="Undo">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1.5 4H7a3.5 3.5 0 010 7H3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M1.5 4L4 1.5M1.5 4L4 6.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    </button>
+    <div class="tool-sep"></div>
+    <button class="tool" id="t-zout">−</button>
+    <span class="zoom-val" id="zoom-val">100%</span>
+    <button class="tool" id="t-zin">+</button>
+  </div>
+
+  <div id="canvas">
+    <div id="grid">
+      <svg id="svg-layer"><defs><marker id="arr" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" class="conn-arrow"/></marker></defs></svg>
+      <div class="canvas-hint" id="hint">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="4" y="16" width="16" height="16" rx="3" stroke="currentColor" stroke-width="1.5"/><rect x="28" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="1.5"/><rect x="28" y="28" width="16" height="16" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M20 24h8M36 20v8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <p>Drag services from the left panel<br>or click any service to place it</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ── RIGHT PANEL ── -->
+<aside id="panel">
+  <div class="stats-bar">
+    <div class="stat">nodes <span id="s-nodes">0</span></div>
+    <div class="stat">edges <span id="s-edges">0</span></div>
+    <div class="stat">clouds <span id="s-clouds">—</span></div>
+  </div>
+
+  <!-- Translation panel -->
+  <div class="panel-section" id="trans-section">
+    <div class="ps-label">Cross-Cloud Translation</div>
+
+    <div class="trans-flow">
+      <div class="trans-cloud" id="tc-src">
+        <div class="trans-cloud-name" id="tc-src-name" style="color:var(--aws)">AWS</div>
+        <div class="trans-cloud-count" id="tc-src-count">0 services</div>
+      </div>
+      <div class="trans-mid">→</div>
+      <div class="trans-cloud" id="tc-tgt">
+        <div class="trans-cloud-name" id="tc-tgt-name" style="color:var(--azure)">Azure</div>
+        <div class="trans-cloud-count">equivalent</div>
+      </div>
+    </div>
+
+    <div id="trans-buttons">
+      <!-- Populated dynamically -->
+    </div>
+
+    <div class="mapping-result" id="mapping-result">
+      <div class="mr-header">
+        <span class="mr-title" id="mr-title">0 mappings found</span>
+        <button class="mr-apply" id="mr-apply">Apply →</button>
+      </div>
+      <div id="mapping-items"></div>
+    </div>
+  </div>
+
+  <!-- Properties panel (shown when node selected) -->
+  <div class="panel-section" id="props-panel">
+    <div class="props-header">
+      <div class="ps-label" style="margin:0">Properties</div>
+      <button class="props-close" id="props-close">✕</button>
+    </div>
+    <div id="props-content"></div>
+  </div>
+</aside>
+
+</div><!-- #app -->
+
+<!-- ── TERRAFORM MODAL ── -->
+<div class="modal-bg" id="tf-modal">
+  <div class="modal">
+    <div class="modal-top">
+      <div class="modal-title">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="5" height="5" rx="1" fill="#a78bfa"/><rect x="8" y="1" width="5" height="5" rx="1" fill="#2ea3f2"/><rect x="1" y="8" width="5" height="5" rx="1" fill="#34a853"/><rect x="8" y="8" width="5" height="5" rx="1" fill="#ff9900"/></svg>
+        Generated Terraform
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="tf-copy">Copy</button>
+        <button class="btn" id="tf-dl">Download</button>
+        <button class="modal-close" id="tf-close">✕</button>
+      </div>
+    </div>
+    <div class="modal-tabs">
+      <button class="mtab on" data-tab="main">main.tf</button>
+      <button class="mtab" data-tab="variables">variables.tf</button>
+      <button class="mtab" data-tab="outputs">outputs.tf</button>
+    </div>
+    <div class="tf-body"><pre id="tf-pre"></pre></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════════════════
+const SVCS = {
+  aws:{
+    Compute:[
+      {id:'ec2',name:'EC2',desc:'Virtual machines',icon:'🖥️',tf:'aws_instance',color:'#ff9900'},
+      {id:'lambda',name:'Lambda',desc:'Serverless functions',icon:'⚡',tf:'aws_lambda_function',color:'#ff9900'},
+      {id:'ecs',name:'ECS',desc:'Container service',icon:'📦',tf:'aws_ecs_service',color:'#ff9900'},
+      {id:'eks',name:'EKS',desc:'Kubernetes',icon:'☸️',tf:'aws_eks_cluster',color:'#ff9900'},
+      {id:'beanstalk',name:'Elastic Beanstalk',desc:'PaaS',icon:'🌱',tf:'aws_elastic_beanstalk_application',color:'#ff9900'},
+    ],
+    Storage:[
+      {id:'s3',name:'S3',desc:'Object storage',icon:'🗄️',tf:'aws_s3_bucket',color:'#569a31'},
+      {id:'ebs',name:'EBS',desc:'Block storage',icon:'💾',tf:'aws_ebs_volume',color:'#569a31'},
+      {id:'efs',name:'EFS',desc:'File system',icon:'📁',tf:'aws_efs_file_system',color:'#569a31'},
+      {id:'glacier',name:'Glacier',desc:'Archive',icon:'🧊',tf:'aws_glacier_vault',color:'#569a31'},
+    ],
+    Database:[
+      {id:'rds',name:'RDS',desc:'Managed SQL',icon:'🗃️',tf:'aws_db_instance',color:'#3b48cc'},
+      {id:'dynamodb',name:'DynamoDB',desc:'NoSQL',icon:'⚡🗄️',tf:'aws_dynamodb_table',color:'#3b48cc'},
+      {id:'aurora',name:'Aurora',desc:'High-perf SQL',icon:'🌟',tf:'aws_rds_cluster',color:'#3b48cc'},
+      {id:'elasticache',name:'ElastiCache',desc:'Redis/Memcache',icon:'🏎️',tf:'aws_elasticache_cluster',color:'#3b48cc'},
+      {id:'redshift',name:'Redshift',desc:'Data warehouse',icon:'📊',tf:'aws_redshift_cluster',color:'#3b48cc'},
+    ],
+    Networking:[
+      {id:'vpc',name:'VPC',desc:'Private network',icon:'🌐',tf:'aws_vpc',color:'#8c4fff'},
+      {id:'alb',name:'ALB',desc:'Load balancer',icon:'⚖️',tf:'aws_lb',color:'#8c4fff'},
+      {id:'cloudfront',name:'CloudFront',desc:'CDN',icon:'🌍',tf:'aws_cloudfront_distribution',color:'#8c4fff'},
+      {id:'route53',name:'Route 53',desc:'DNS',icon:'🔀',tf:'aws_route53_zone',color:'#8c4fff'},
+      {id:'apigateway',name:'API Gateway',desc:'API management',icon:'🔌',tf:'aws_api_gateway_rest_api',color:'#8c4fff'},
+    ],
+    Security:[
+      {id:'iam',name:'IAM',desc:'Identity & access',icon:'🔐',tf:'aws_iam_role',color:'#dd344c'},
+      {id:'cognito',name:'Cognito',desc:'User auth',icon:'👤',tf:'aws_cognito_user_pool',color:'#dd344c'},
+      {id:'kms',name:'KMS',desc:'Key management',icon:'🗝️',tf:'aws_kms_key',color:'#dd344c'},
+      {id:'waf',name:'WAF',desc:'Web firewall',icon:'🛡️',tf:'aws_wafv2_web_acl',color:'#dd344c'},
+    ],
+    Messaging:[
+      {id:'sqs',name:'SQS',desc:'Message queue',icon:'📬',tf:'aws_sqs_queue',color:'#ff4f8b'},
+      {id:'sns',name:'SNS',desc:'Pub/sub',icon:'📢',tf:'aws_sns_topic',color:'#ff4f8b'},
+      {id:'kinesis',name:'Kinesis',desc:'Data stream',icon:'🌊',tf:'aws_kinesis_stream',color:'#ff4f8b'},
+      {id:'eventbridge',name:'EventBridge',desc:'Event bus',icon:'🎯',tf:'aws_cloudwatch_event_bus',color:'#ff4f8b'},
+    ],
+    Monitoring:[
+      {id:'cloudwatch',name:'CloudWatch',desc:'Monitoring',icon:'📈',tf:'aws_cloudwatch_metric_alarm',color:'#e7157b'},
+      {id:'xray',name:'X-Ray',desc:'Tracing',icon:'🔍',tf:'aws_xray_group',color:'#e7157b'},
+    ]
+  },
+  azure:{
+    Compute:[
+      {id:'az_vm',name:'Virtual Machines',desc:'IaaS compute',icon:'🖥️',tf:'azurerm_virtual_machine',color:'#2ea3f2'},
+      {id:'az_functions',name:'Azure Functions',desc:'Serverless',icon:'⚡',tf:'azurerm_function_app',color:'#2ea3f2'},
+      {id:'az_aci',name:'Container Instances',desc:'Containers',icon:'📦',tf:'azurerm_container_group',color:'#2ea3f2'},
+      {id:'az_aks',name:'AKS',desc:'Kubernetes',icon:'☸️',tf:'azurerm_kubernetes_cluster',color:'#2ea3f2'},
+      {id:'az_appservice',name:'App Service',desc:'PaaS',icon:'🌱',tf:'azurerm_app_service',color:'#2ea3f2'},
+    ],
+    Storage:[
+      {id:'az_blob',name:'Blob Storage',desc:'Object storage',icon:'🗄️',tf:'azurerm_storage_blob',color:'#00bcf2'},
+      {id:'az_disk',name:'Managed Disks',desc:'Block storage',icon:'💾',tf:'azurerm_managed_disk',color:'#00bcf2'},
+      {id:'az_files',name:'Azure Files',desc:'File shares',icon:'📁',tf:'azurerm_storage_share',color:'#00bcf2'},
+    ],
+    Database:[
+      {id:'az_sqldb',name:'SQL Database',desc:'Managed SQL',icon:'🗃️',tf:'azurerm_sql_database',color:'#3b48cc'},
+      {id:'az_cosmos',name:'Cosmos DB',desc:'NoSQL',icon:'🌌',tf:'azurerm_cosmosdb_account',color:'#3b48cc'},
+      {id:'az_redis',name:'Azure Cache',desc:'Redis',icon:'🏎️',tf:'azurerm_redis_cache',color:'#3b48cc'},
+      {id:'az_synapse',name:'Synapse',desc:'Analytics',icon:'📊',tf:'azurerm_synapse_workspace',color:'#3b48cc'},
+    ],
+    Networking:[
+      {id:'az_vnet',name:'Virtual Network',desc:'VNet',icon:'🌐',tf:'azurerm_virtual_network',color:'#8c4fff'},
+      {id:'az_lb',name:'Load Balancer',desc:'Traffic balancing',icon:'⚖️',tf:'azurerm_lb',color:'#8c4fff'},
+      {id:'az_cdn',name:'Azure CDN',desc:'Content delivery',icon:'🌍',tf:'azurerm_cdn_profile',color:'#8c4fff'},
+      {id:'az_dns',name:'Azure DNS',desc:'DNS zones',icon:'🔀',tf:'azurerm_dns_zone',color:'#8c4fff'},
+      {id:'az_apim',name:'API Management',desc:'API gateway',icon:'🔌',tf:'azurerm_api_management',color:'#8c4fff'},
+    ],
+    Security:[
+      {id:'az_aad',name:'Azure AD',desc:'Identity',icon:'🔐',tf:'azurerm_active_directory_domain_service',color:'#dd344c'},
+      {id:'az_b2c',name:'AD B2C',desc:'User auth',icon:'👤',tf:'azurerm_aadb2c_directory',color:'#dd344c'},
+      {id:'az_kv',name:'Key Vault',desc:'Secret mgmt',icon:'🗝️',tf:'azurerm_key_vault',color:'#dd344c'},
+    ],
+    Messaging:[
+      {id:'az_servicebus',name:'Service Bus',desc:'Queue/topic',icon:'📬',tf:'azurerm_servicebus_queue',color:'#ff4f8b'},
+      {id:'az_eventhubs',name:'Event Hubs',desc:'Streaming',icon:'🌊',tf:'azurerm_eventhub',color:'#ff4f8b'},
+    ]
+  },
+  gcp:{
+    Compute:[
+      {id:'gce',name:'Compute Engine',desc:'VMs',icon:'🖥️',tf:'google_compute_instance',color:'#4285f4'},
+      {id:'gcf',name:'Cloud Functions',desc:'Serverless',icon:'⚡',tf:'google_cloudfunctions_function',color:'#4285f4'},
+      {id:'gcr',name:'Cloud Run',desc:'Containers',icon:'📦',tf:'google_cloud_run_service',color:'#4285f4'},
+      {id:'gke',name:'GKE',desc:'Kubernetes',icon:'☸️',tf:'google_container_cluster',color:'#4285f4'},
+      {id:'gae',name:'App Engine',desc:'PaaS',icon:'🌱',tf:'google_app_engine_application',color:'#4285f4'},
+    ],
+    Storage:[
+      {id:'gcs',name:'Cloud Storage',desc:'Object storage',icon:'🗄️',tf:'google_storage_bucket',color:'#34a853'},
+      {id:'gpd',name:'Persistent Disk',desc:'Block storage',icon:'💾',tf:'google_compute_disk',color:'#34a853'},
+      {id:'gfs',name:'Filestore',desc:'NFS',icon:'📁',tf:'google_filestore_instance',color:'#34a853'},
+    ],
+    Database:[
+      {id:'gcloudsql',name:'Cloud SQL',desc:'Managed SQL',icon:'🗃️',tf:'google_sql_database_instance',color:'#3b48cc'},
+      {id:'firestore',name:'Firestore',desc:'NoSQL',icon:'🔥',tf:'google_firestore_index',color:'#3b48cc'},
+      {id:'bigtable',name:'Bigtable',desc:'Wide-column',icon:'⚡🗄️',tf:'google_bigtable_instance',color:'#3b48cc'},
+      {id:'bigquery',name:'BigQuery',desc:'Data warehouse',icon:'📊',tf:'google_bigquery_dataset',color:'#3b48cc'},
+      {id:'memorystore',name:'Memorystore',desc:'Redis',icon:'🏎️',tf:'google_redis_instance',color:'#3b48cc'},
+    ],
+    Networking:[
+      {id:'gvpc',name:'VPC Network',desc:'Private network',icon:'🌐',tf:'google_compute_network',color:'#8c4fff'},
+      {id:'gclb',name:'Cloud LB',desc:'Load balancing',icon:'⚖️',tf:'google_compute_backend_service',color:'#8c4fff'},
+      {id:'gcdn',name:'Cloud CDN',desc:'CDN',icon:'🌍',tf:'google_compute_backend_bucket',color:'#8c4fff'},
+      {id:'gcldns',name:'Cloud DNS',desc:'DNS',icon:'🔀',tf:'google_dns_managed_zone',color:'#8c4fff'},
+      {id:'gapigw',name:'Cloud Endpoints',desc:'API gateway',icon:'🔌',tf:'google_endpoints_service',color:'#8c4fff'},
+    ],
+    Security:[
+      {id:'giam',name:'Cloud IAM',desc:'Identity & access',icon:'🔐',tf:'google_project_iam_member',color:'#dd344c'},
+      {id:'gkms',name:'Cloud KMS',desc:'Keys',icon:'🗝️',tf:'google_kms_key_ring',color:'#dd344c'},
+    ],
+    Messaging:[
+      {id:'gpubsub',name:'Pub/Sub',desc:'Messaging',icon:'📢',tf:'google_pubsub_topic',color:'#ff4f8b'},
+      {id:'gdataflow',name:'Dataflow',desc:'Stream processing',icon:'🌊',tf:'google_dataflow_job',color:'#ff4f8b'},
+    ]
+  }
+};
+
+// Translation map — confidence: high=exact, med=functional equiv, low=partial
+const MAPS = {
+  aws_azure:{
+    ec2:{id:'az_vm',name:'Virtual Machines',note:'Direct VM equivalent',conf:'high'},
+    lambda:{id:'az_functions',name:'Azure Functions',note:'Serverless compute',conf:'high'},
+    ecs:{id:'az_aci',name:'Container Instances',note:'Container hosting',conf:'high'},
+    eks:{id:'az_aks',name:'AKS',note:'1:1 Kubernetes mapping',conf:'high'},
+    beanstalk:{id:'az_appservice',name:'App Service',note:'Managed PaaS',conf:'high'},
+    s3:{id:'az_blob',name:'Blob Storage',note:'Object storage equivalent',conf:'high'},
+    ebs:{id:'az_disk',name:'Managed Disks',note:'Block storage equivalent',conf:'high'},
+    efs:{id:'az_files',name:'Azure Files',note:'File share equivalent',conf:'high'},
+    glacier:{id:'az_blob',name:'Blob Storage (Cool/Archive)',note:'Use Archive tier',conf:'med'},
+    rds:{id:'az_sqldb',name:'SQL Database',note:'Managed relational DB',conf:'high'},
+    dynamodb:{id:'az_cosmos',name:'Cosmos DB',note:'NoSQL; Cosmos supports multiple APIs',conf:'med'},
+    aurora:{id:'az_sqldb',name:'SQL Database Hyperscale',note:'High-perf SQL option',conf:'med'},
+    elasticache:{id:'az_redis',name:'Azure Cache for Redis',note:'Redis service',conf:'high'},
+    redshift:{id:'az_synapse',name:'Synapse Analytics',note:'Adds Spark + lake capabilities',conf:'med'},
+    vpc:{id:'az_vnet',name:'Virtual Network',note:'Network isolation',conf:'high'},
+    alb:{id:'az_lb',name:'Load Balancer + App Gateway',note:'Use App Gateway for L7',conf:'med'},
+    cloudfront:{id:'az_cdn',name:'Azure CDN',note:'Global CDN',conf:'high'},
+    route53:{id:'az_dns',name:'Azure DNS',note:'DNS management',conf:'high'},
+    apigateway:{id:'az_apim',name:'API Management',note:'Full API lifecycle mgmt',conf:'high'},
+    iam:{id:'az_aad',name:'Azure Active Directory',note:'Identity platform',conf:'med'},
+    cognito:{id:'az_b2c',name:'Azure AD B2C',note:'Consumer identity service',conf:'high'},
+    kms:{id:'az_kv',name:'Key Vault',note:'Secret & key management',conf:'high'},
+    waf:{id:'az_lb',name:'Azure Firewall / WAF',note:'Separate WAF product in Azure',conf:'med'},
+    sqs:{id:'az_servicebus',name:'Service Bus Queues',note:'Queue messaging',conf:'high'},
+    sns:{id:'az_servicebus',name:'Service Bus Topics',note:'Pub/sub messaging',conf:'high'},
+    kinesis:{id:'az_eventhubs',name:'Event Hubs',note:'Real-time streaming with Kafka API',conf:'high'},
+    eventbridge:{id:'az_servicebus',name:'Service Bus + Event Grid',note:'Use Event Grid for routing',conf:'med'},
+    cloudwatch:{id:'az_monitor',name:'Azure Monitor',note:'Metrics, logs, alerts',conf:'high'},
+    xray:{id:'az_monitor',name:'App Insights',note:'Distributed tracing',conf:'high'},
+  },
+  aws_gcp:{
+    ec2:{id:'gce',name:'Compute Engine',note:'Direct VM equivalent',conf:'high'},
+    lambda:{id:'gcf',name:'Cloud Functions',note:'Serverless compute',conf:'high'},
+    ecs:{id:'gcr',name:'Cloud Run',note:'Serverless containers',conf:'high'},
+    eks:{id:'gke',name:'GKE',note:'1:1 Kubernetes mapping',conf:'high'},
+    beanstalk:{id:'gae',name:'App Engine',note:'Managed PaaS',conf:'high'},
+    s3:{id:'gcs',name:'Cloud Storage',note:'Object storage equivalent',conf:'high'},
+    ebs:{id:'gpd',name:'Persistent Disk',note:'Block storage equivalent',conf:'high'},
+    efs:{id:'gfs',name:'Filestore',note:'Managed NFS',conf:'high'},
+    glacier:{id:'gcs',name:'Cloud Storage (Coldline)',note:'Use Coldline/Archive class',conf:'med'},
+    rds:{id:'gcloudsql',name:'Cloud SQL',note:'Managed relational DB',conf:'high'},
+    dynamodb:{id:'firestore',name:'Firestore',note:'Serverless NoSQL (Bigtable for heavy writes)',conf:'med'},
+    aurora:{id:'gcloudsql',name:'Cloud SQL (HA)',note:'HA read replicas available',conf:'med'},
+    elasticache:{id:'memorystore',name:'Memorystore',note:'Managed Redis/Memcached',conf:'high'},
+    redshift:{id:'bigquery',name:'BigQuery',note:'Serverless — no infra to manage',conf:'med'},
+    vpc:{id:'gvpc',name:'VPC Network',note:'Virtual private cloud',conf:'high'},
+    alb:{id:'gclb',name:'Cloud Load Balancing',note:'Global anycast load balancing',conf:'high'},
+    cloudfront:{id:'gcdn',name:'Cloud CDN',note:'Global CDN',conf:'high'},
+    route53:{id:'gcldns',name:'Cloud DNS',note:'DNS management',conf:'high'},
+    apigateway:{id:'gapigw',name:'Cloud Endpoints / API GW',note:'Use new API Gateway product',conf:'med'},
+    iam:{id:'giam',name:'Cloud IAM',note:'Identity & access',conf:'high'},
+    cognito:{id:'giam',name:'Firebase Auth',note:'Use Firebase for consumer auth',conf:'med'},
+    kms:{id:'gkms',name:'Cloud KMS',note:'Key management service',conf:'high'},
+    waf:{id:'giam',name:'Cloud Armor',note:'GCP WAF + DDoS protection',conf:'high'},
+    sqs:{id:'gpubsub',name:'Cloud Pub/Sub',note:'Pull subscriptions = queue pattern',conf:'high'},
+    sns:{id:'gpubsub',name:'Cloud Pub/Sub',note:'Push subscriptions = fan-out',conf:'high'},
+    kinesis:{id:'gdataflow',name:'Dataflow + Pub/Sub',note:'Pub/Sub ingestion + Dataflow processing',conf:'med'},
+    eventbridge:{id:'gpubsub',name:'Eventarc + Pub/Sub',note:'Eventarc for event routing',conf:'med'},
+    cloudwatch:{id:'giam',name:'Cloud Monitoring',note:'Cloud Ops suite (formerly Stackdriver)',conf:'high'},
+    xray:{id:'giam',name:'Cloud Trace',note:'Distributed tracing',conf:'high'},
+  },
+  azure_aws:{
+    az_vm:{id:'ec2',name:'EC2',note:'Virtual machine equivalent',conf:'high'},
+    az_functions:{id:'lambda',name:'Lambda',note:'Serverless compute',conf:'high'},
+    az_aci:{id:'ecs',name:'ECS (Fargate)',note:'Managed containers',conf:'high'},
+    az_aks:{id:'eks',name:'EKS',note:'Kubernetes',conf:'high'},
+    az_appservice:{id:'beanstalk',name:'Elastic Beanstalk',note:'Managed PaaS',conf:'high'},
+    az_blob:{id:'s3',name:'S3',note:'Object storage',conf:'high'},
+    az_disk:{id:'ebs',name:'EBS',note:'Block storage',conf:'high'},
+    az_files:{id:'efs',name:'EFS',note:'File storage',conf:'high'},
+    az_sqldb:{id:'rds',name:'RDS',note:'Managed relational DB',conf:'high'},
+    az_cosmos:{id:'dynamodb',name:'DynamoDB',note:'NoSQL (DynamoDB lacks multi-model API)',conf:'med'},
+    az_redis:{id:'elasticache',name:'ElastiCache',note:'Redis compatible',conf:'high'},
+    az_synapse:{id:'redshift',name:'Redshift',note:'Data warehouse',conf:'med'},
+    az_vnet:{id:'vpc',name:'VPC',note:'Virtual private cloud',conf:'high'},
+    az_lb:{id:'alb',name:'ALB',note:'Application load balancer',conf:'high'},
+    az_cdn:{id:'cloudfront',name:'CloudFront',note:'Global CDN',conf:'high'},
+    az_dns:{id:'route53',name:'Route 53',note:'DNS management',conf:'high'},
+    az_apim:{id:'apigateway',name:'API Gateway',note:'API management',conf:'high'},
+    az_aad:{id:'iam',name:'IAM + Cognito',note:'Split across IAM + Cognito',conf:'med'},
+    az_b2c:{id:'cognito',name:'Cognito',note:'Consumer identity',conf:'high'},
+    az_kv:{id:'kms',name:'KMS + Secrets Manager',note:'Two services in AWS',conf:'med'},
+    az_servicebus:{id:'sqs',name:'SQS + SNS',note:'Queue + pub/sub split',conf:'high'},
+    az_eventhubs:{id:'kinesis',name:'Kinesis Data Streams',note:'Kafka-compatible streaming',conf:'high'},
+  },
+  azure_gcp:{
+    az_vm:{id:'gce',name:'Compute Engine',note:'VM equivalent',conf:'high'},
+    az_functions:{id:'gcf',name:'Cloud Functions',note:'Serverless',conf:'high'},
+    az_aci:{id:'gcr',name:'Cloud Run',note:'Serverless containers',conf:'high'},
+    az_aks:{id:'gke',name:'GKE',note:'Kubernetes',conf:'high'},
+    az_appservice:{id:'gae',name:'App Engine',note:'PaaS',conf:'high'},
+    az_blob:{id:'gcs',name:'Cloud Storage',note:'Object storage',conf:'high'},
+    az_disk:{id:'gpd',name:'Persistent Disk',note:'Block storage',conf:'high'},
+    az_files:{id:'gfs',name:'Filestore',note:'NFS storage',conf:'high'},
+    az_sqldb:{id:'gcloudsql',name:'Cloud SQL',note:'Managed SQL',conf:'high'},
+    az_cosmos:{id:'firestore',name:'Firestore / Bigtable',note:'Bigtable for large scale',conf:'med'},
+    az_redis:{id:'memorystore',name:'Memorystore',note:'Redis',conf:'high'},
+    az_synapse:{id:'bigquery',name:'BigQuery',note:'Serverless warehouse',conf:'med'},
+    az_vnet:{id:'gvpc',name:'VPC Network',note:'Private network',conf:'high'},
+    az_lb:{id:'gclb',name:'Cloud Load Balancing',note:'Global LB',conf:'high'},
+    az_cdn:{id:'gcdn',name:'Cloud CDN',note:'CDN',conf:'high'},
+    az_dns:{id:'gcldns',name:'Cloud DNS',note:'DNS',conf:'high'},
+    az_apim:{id:'gapigw',name:'Cloud Endpoints',note:'API gateway',conf:'high'},
+    az_aad:{id:'giam',name:'Cloud IAM',note:'Identity',conf:'med'},
+    az_b2c:{id:'giam',name:'Firebase Auth',note:'Consumer identity',conf:'high'},
+    az_kv:{id:'gkms',name:'Cloud KMS + Secret Manager',note:'Two services',conf:'med'},
+    az_servicebus:{id:'gpubsub',name:'Cloud Pub/Sub',note:'Messaging',conf:'high'},
+    az_eventhubs:{id:'gdataflow',name:'Pub/Sub + Dataflow',note:'Streaming pipeline',conf:'med'},
+  },
+  gcp_aws:{
+    gce:{id:'ec2',name:'EC2',note:'VM equivalent',conf:'high'},
+    gcf:{id:'lambda',name:'Lambda',note:'Serverless',conf:'high'},
+    gcr:{id:'ecs',name:'ECS Fargate',note:'Serverless containers',conf:'high'},
+    gke:{id:'eks',name:'EKS',note:'Kubernetes',conf:'high'},
+    gae:{id:'beanstalk',name:'Elastic Beanstalk',note:'PaaS',conf:'high'},
+    gcs:{id:'s3',name:'S3',note:'Object storage',conf:'high'},
+    gpd:{id:'ebs',name:'EBS',note:'Block storage',conf:'high'},
+    gfs:{id:'efs',name:'EFS',note:'File storage',conf:'high'},
+    gcloudsql:{id:'rds',name:'RDS',note:'Managed SQL',conf:'high'},
+    firestore:{id:'dynamodb',name:'DynamoDB',note:'NoSQL',conf:'high'},
+    bigtable:{id:'dynamodb',name:'DynamoDB',note:'Large-scale NoSQL',conf:'med'},
+    bigquery:{id:'redshift',name:'Redshift',note:'Data warehouse',conf:'med'},
+    memorystore:{id:'elasticache',name:'ElastiCache',note:'Redis',conf:'high'},
+    gvpc:{id:'vpc',name:'VPC',note:'Private network',conf:'high'},
+    gclb:{id:'alb',name:'ALB',note:'Load balancing',conf:'high'},
+    gcdn:{id:'cloudfront',name:'CloudFront',note:'CDN',conf:'high'},
+    gcldns:{id:'route53',name:'Route 53',note:'DNS',conf:'high'},
+    gapigw:{id:'apigateway',name:'API Gateway',note:'API management',conf:'med'},
+    giam:{id:'iam',name:'IAM',note:'Identity',conf:'high'},
+    gkms:{id:'kms',name:'KMS',note:'Key management',conf:'high'},
+    gpubsub:{id:'sns',name:'SNS + SQS',note:'Pub/sub + queue patterns',conf:'high'},
+    gdataflow:{id:'kinesis',name:'Kinesis Data Streams',note:'Streaming',conf:'med'},
+  },
+  gcp_azure:{
+    gce:{id:'az_vm',name:'Virtual Machines',note:'VM equivalent',conf:'high'},
+    gcf:{id:'az_functions',name:'Azure Functions',note:'Serverless',conf:'high'},
+    gcr:{id:'az_aci',name:'Container Instances',note:'Containers',conf:'high'},
+    gke:{id:'az_aks',name:'AKS',note:'Kubernetes',conf:'high'},
+    gae:{id:'az_appservice',name:'App Service',note:'PaaS',conf:'high'},
+    gcs:{id:'az_blob',name:'Blob Storage',note:'Object storage',conf:'high'},
+    gpd:{id:'az_disk',name:'Managed Disks',note:'Block storage',conf:'high'},
+    gfs:{id:'az_files',name:'Azure Files',note:'File storage',conf:'high'},
+    gcloudsql:{id:'az_sqldb',name:'SQL Database',note:'Managed SQL',conf:'high'},
+    firestore:{id:'az_cosmos',name:'Cosmos DB',note:'NoSQL',conf:'high'},
+    bigtable:{id:'az_cosmos',name:'Cosmos DB (Table API)',note:'Wide-column via Table API',conf:'med'},
+    bigquery:{id:'az_synapse',name:'Synapse Analytics',note:'Serverless + dedicated pools',conf:'med'},
+    memorystore:{id:'az_redis',name:'Azure Cache for Redis',note:'Redis',conf:'high'},
+    gvpc:{id:'az_vnet',name:'Virtual Network',note:'VNet',conf:'high'},
+    gclb:{id:'az_lb',name:'Load Balancer + App Gateway',note:'L7 = App Gateway',conf:'med'},
+    gcdn:{id:'az_cdn',name:'Azure CDN',note:'CDN',conf:'high'},
+    gcldns:{id:'az_dns',name:'Azure DNS',note:'DNS',conf:'high'},
+    gapigw:{id:'az_apim',name:'API Management',note:'API management',conf:'high'},
+    giam:{id:'az_aad',name:'Azure Active Directory',note:'Identity',conf:'med'},
+    gkms:{id:'az_kv',name:'Key Vault',note:'Keys + secrets',conf:'high'},
+    gpubsub:{id:'az_servicebus',name:'Service Bus',note:'Queue + pub/sub',conf:'high'},
+    gdataflow:{id:'az_eventhubs',name:'Event Hubs',note:'Event streaming',conf:'high'},
+  }
+};
+
+function getAllSvcs(cloud){ const r=[]; const c=SVCS[cloud]; for(const cat in c) c[cat].forEach(s=>r.push({...s,category:cat,cloud})); return r; }
+function getMapKey(src,tgt){ return `${src}_${tgt}`; }
+
+// ══════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════
+let nodes=[], conns=[], nid=0, selNode=null;
+let isDrag=false, dragOff={x:0,y:0};
+let isPan=false, panStart={x:0,y:0};
+let canvasOff={x:0,y:0}, zoom=1;
+let connStart=null, curTool='select';
+let history=[], tfTabs={};
+let srcCloud='aws', tgtCloud='azure';
+let cfFilter={aws:true,azure:true,gcp:true};
+
+// ══════════════════════════════════════════════════════
+//  SIDEBAR
+// ══════════════════════════════════════════════════════
+function renderSidebar(query=''){
+  const list=document.getElementById('svc-list');
+  let html='';
+  ['aws','azure','gcp'].forEach(cloud=>{
+    if(!cfFilter[cloud]) return;
+    const cats=SVCS[cloud];
+    for(const cat in cats){
+      const svcs=cats[cat].filter(s=>
+        !query || s.name.toLowerCase().includes(query.toLowerCase()) || s.desc.toLowerCase().includes(query.toLowerCase())
+      );
+      if(svcs.length===0) continue;
+      html+=`<div class="cat-label">${cloud.toUpperCase()} · ${cat}</div>`;
+      svcs.forEach(s=>{
+        const bg=s.color+'22', col=s.color;
+        html+=`<div class="svc" draggable="true" data-id="${s.id}" data-cloud="${cloud}" title="${s.desc}">
+          <div class="svc-icon" style="background:${bg}"><span>${s.icon}</span></div>
+          <div class="svc-info">
+            <div class="svc-name">${s.name}</div>
+            <div class="svc-tag" style="color:${col};opacity:.7">${s.desc}</div>
+          </div>
+        </div>`;
+      });
+    }
+  });
+  if(!html) html='<div style="padding:16px;font-family:var(--mono);font-size:11px;color:var(--text3);text-align:center">no results</div>';
+  list.innerHTML=html;
+  list.querySelectorAll('.svc').forEach(el=>{
+    el.addEventListener('dragstart',e=>{
+      e.dataTransfer.setData('svcId',el.dataset.id);
+      e.dataTransfer.setData('cloud',el.dataset.cloud);
+    });
+    el.addEventListener('click',()=>{
+      const x=120+Math.random()*500, y=80+Math.random()*350;
+      addNode(el.dataset.id,el.dataset.cloud,x,y);
+    });
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  NODES
+// ══════════════════════════════════════════════════════
+function addNode(svcId,cloud,x,y){
+  const svc=getAllSvcs(cloud).find(s=>s.id===svcId);
+  if(!svc) return;
+  saveHist();
+  const node={id:`n${++nid}`,svcId,cloud,svc,x,y,label:svc.name};
+  nodes.push(node);
+  renderNode(node);
+  updateStats();
+  document.getElementById('hint').style.display='none';
+  updateTransPanel();
+}
+
+function renderNode(node){
+  const el=document.createElement('div');
+  el.className=`node ${node.cloud}-node`;
+  el.id=node.id;
+  el.style.cssText=`left:${node.x}px;top:${node.y}px`;
+  el.innerHTML=`
+    <button class="node-del">✕</button>
+    <div class="node-icon">${node.svc.icon}</div>
+    <div class="node-name">${node.label}</div>
+    <div class="node-svc" style="color:${node.svc.color};opacity:.6">${node.svc.name}</div>
+    <div class="node-cloud-tag ${node.cloud}">${node.cloud.toUpperCase()}</div>
+    <div class="node-ports">
+      <div class="port" data-n="${node.id}" data-p="in"></div>
+      <div class="port" data-n="${node.id}" data-p="out"></div>
+    </div>`;
+  document.getElementById('grid').appendChild(el);
+  el.addEventListener('mousedown',e=>{
+    if(e.target.classList.contains('node-del')||e.target.classList.contains('port')) return;
+    e.stopPropagation();
+    selectNode(node);
+    isDrag=true;
+    const r=el.getBoundingClientRect();
+    dragOff.x=(e.clientX-r.left)/zoom;
+    dragOff.y=(e.clientY-r.top)/zoom;
+  });
+  el.querySelector('.node-del').addEventListener('click',e=>{e.stopPropagation();deleteNode(node.id);});
+  el.querySelectorAll('.port').forEach(p=>{
+    p.addEventListener('mousedown',e=>{
+      e.stopPropagation();
+      connStart={nodeId:node.id};
+      document.getElementById('canvas').style.cursor='crosshair';
+    });
+    p.addEventListener('mouseup',e=>{
+      if(connStart&&connStart.nodeId!==node.id){ addConn(connStart.nodeId,node.id); connStart=null; document.getElementById('canvas').style.cursor=''; }
+    });
+  });
+  el.addEventListener('click',()=>{ if(!isDrag) selectNode(node); });
+}
+
+function selectNode(node){
+  deselectAll();
+  selNode=node;
+  document.getElementById(node.id)?.classList.add('sel');
+  showProps(node);
+}
+
+function deselectAll(){
+  selNode=null;
+  document.querySelectorAll('.node.sel').forEach(el=>el.classList.remove('sel'));
+}
+
+function deleteNode(nodeId){
+  saveHist();
+  nodes=nodes.filter(n=>n.id!==nodeId);
+  conns=conns.filter(c=>c.from!==nodeId&&c.to!==nodeId);
+  document.getElementById(nodeId)?.remove();
+  renderConns();
+  updateStats();
+  updateTransPanel();
+  if(nodes.length===0) document.getElementById('hint').style.display='';
+}
+
+function addConn(from,to){
+  if(conns.find(c=>c.from===from&&c.to===to)) return;
+  saveHist();
+  conns.push({id:`c${Date.now()}`,from,to});
+  renderConns();
+  updateStats();
+}
+
+function renderConns(){
+  const svg=document.getElementById('svg-layer');
+  const existing=[...svg.querySelectorAll('path')];
+  existing.forEach(e=>e.remove());
+  conns.forEach(c=>{
+    const fe=document.getElementById(c.from), te=document.getElementById(c.to);
+    if(!fe||!te) return;
+    const x1=parseFloat(fe.style.left)+fe.offsetWidth, y1=parseFloat(fe.style.top)+fe.offsetHeight/2;
+    const x2=parseFloat(te.style.left), y2=parseFloat(te.style.top)+te.offsetHeight/2;
+    const cx=(x1+x2)/2;
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',`M${x1} ${y1} C${cx} ${y1},${cx} ${y2},${x2} ${y2}`);
+    path.setAttribute('class','conn-path');
+    path.setAttribute('marker-end','url(#arr)');
+    svg.appendChild(path);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  TRANSLATION PANEL
+// ══════════════════════════════════════════════════════
+function updateTransPanel(){
+  const srcNodes=nodes.filter(n=>n.cloud===srcCloud);
+  const tgtNodes=nodes.filter(n=>n.cloud===tgtCloud);
+  document.getElementById('tc-src-count').textContent=srcNodes.length+' service'+(srcNodes.length!==1?'s':'');
+  document.getElementById('tc-src-name').textContent=srcCloud.toUpperCase();
+  document.getElementById('tc-src-name').style.color=`var(--${srcCloud})`;
+  document.getElementById('tc-tgt-name').textContent=tgtCloud.toUpperCase();
+  document.getElementById('tc-tgt-name').style.color=`var(--${tgtCloud})`;
+  updateStats();
+}
+
+function doTranslate(){
+  const srcNodes=nodes.filter(n=>n.cloud===srcCloud);
+  if(srcNodes.length===0){ toast('Add some '+srcCloud.toUpperCase()+' services first'); return; }
+  const mapKey=getMapKey(srcCloud,tgtCloud);
+  const map=MAPS[mapKey];
+  if(!map){ toast('Translation path not available yet'); return; }
+  const mappings=[];
+  srcNodes.forEach(node=>{
+    const m=map[node.svcId];
+    if(m){
+      const tgtSvc=getAllSvcs(tgtCloud).find(s=>s.id===m.id)||{id:m.id,name:m.name,icon:'🔄',color:'#666',tf:'# unknown'};
+      mappings.push({fromNode:node,to:{...m,svc:tgtSvc}});
+    }
+  });
+  const unmapped=srcNodes.filter(n=>!map[n.svcId]);
+  // Show results
+  const res=document.getElementById('mapping-result');
+  const items=document.getElementById('mapping-items');
+  res.classList.add('show');
+  document.getElementById('mr-title').textContent=`${mappings.length} mapping${mappings.length!==1?'s':''} found`;
+  let html='';
+  mappings.forEach(m=>{
+    const confClass=m.to.conf==='high'?'conf-high':m.to.conf==='med'?'conf-med':'conf-low';
+    const confLabel=m.to.conf==='high'?'exact':m.to.conf==='med'?'equiv':'partial';
+    html+=`<div class="map-item">
+      <span class="conf-badge ${confClass}">${confLabel}</span>
+      <div class="map-from">${m.fromNode.svc.icon} ${m.fromNode.svc.name}</div>
+      <div class="map-arrow-line">↓</div>
+      <div class="map-to">${m.to.svc.icon} ${m.to.name}</div>
+      <div class="map-note">${m.to.note}</div>
+    </div>`;
+  });
+  if(unmapped.length>0){
+    html+=`<div class="map-item warn">
+      <div class="map-from" style="color:var(--amber)">⚠ No direct equivalent:</div>
+      <div class="map-note">${unmapped.map(n=>n.svc.name).join(', ')}</div>
+    </div>`;
+  }
+  items.innerHTML=html;
+  // Store for apply
+  res.dataset.mappings=JSON.stringify(mappings.map(m=>({fromId:m.fromNode.id,toSvcId:m.to.id,toCloud:tgtCloud})));
+  toast(`Translated ${mappings.length} services to ${tgtCloud.toUpperCase()}`);
+}
+
+function applyTranslation(){
+  const res=document.getElementById('mapping-result');
+  const mappings=JSON.parse(res.dataset.mappings||'[]');
+  if(mappings.length===0) return;
+  saveHist();
+  const maxX=nodes.length>0?Math.max(...nodes.map(n=>n.x))+200:100;
+  const startY=nodes.length>0?Math.min(...nodes.map(n=>n.y)):80;
+  mappings.forEach((m,i)=>{
+    const fromNode=nodes.find(n=>n.id===m.fromId);
+    if(!fromNode) return;
+    const x=maxX+40, y=startY+i*130;
+    addNode(m.toSvcId,m.toCloud,x,y);
+    setTimeout(()=>{const newId=`n${nid}`;addConn(m.fromId,newId);},60);
+  });
+  toast(`Applied ${mappings.length} ${tgtCloud.toUpperCase()} equivalents to canvas`);
+}
+
+// ══════════════════════════════════════════════════════
+//  PROPERTIES PANEL
+// ══════════════════════════════════════════════════════
+function showProps(node){
+  const panel=document.getElementById('props-panel');
+  panel.classList.add('show');
+  const cname={aws:'AWS',azure:'Azure',gcp:'GCP'}[node.cloud];
+  document.getElementById('props-content').innerHTML=`
+    <div class="prop-svc-card">
+      <div class="prop-icon">${node.svc.icon}</div>
+      <div>
+        <div class="prop-name">${node.svc.name}</div>
+        <div class="prop-tf" style="color:var(--${node.cloud})">${cname} · ${node.svc.tf}</div>
+      </div>
+    </div>
+    <div class="prop-field">
+      <label class="prop-label">Resource Name</label>
+      <input class="prop-input" id="pn-label" value="${node.label}">
+    </div>
+    <div class="prop-field">
+      <label class="prop-label">Region / Zone</label>
+      ${regionSelect(node.cloud)}
+    </div>
+    <div class="prop-field">
+      <label class="prop-label">Environment</label>
+      <select class="prop-select"><option>production</option><option>staging</option><option>development</option></select>
+    </div>
+    <div class="prop-field">
+      <label class="prop-label">Terraform Resource Type</label>
+      <div class="tf-snippet"><span class="kw">resource</span> <span class="ts">"${node.svc.tf}"</span> <span class="ts">"${sanitize(node.label)}"</span> {</div>
+    </div>`;
+  document.getElementById('pn-label').addEventListener('input',e=>{
+    node.label=e.target.value;
+    const el=document.getElementById(node.id);
+    if(el) el.querySelector('.node-name').textContent=node.label;
+    el.querySelector('.tf-snippet span.ts:last-child').textContent=`"${sanitize(node.label)}"`;
+  });
+}
+
+function regionSelect(cloud){
+  const opts={aws:['us-east-1','us-west-2','eu-west-1','ap-south-1','ap-southeast-1'],azure:['East US','West Europe','Southeast Asia','UK South','Australia East'],gcp:['us-central1','europe-west1','asia-south1','us-east1','australia-southeast1']};
+  return `<select class="prop-select">${(opts[cloud]||[]).map(o=>`<option>${o}</option>`).join('')}</select>`;
+}
+
+// ══════════════════════════════════════════════════════
+//  TERRAFORM
+// ══════════════════════════════════════════════════════
+function genTf(){
+  const byCloud={};
+  nodes.forEach(n=>{
+    if(!byCloud[n.cloud]) byCloud[n.cloud]=[];
+    byCloud[n.cloud].push(n);
+  });
+  let main=`# Generated by CloudShift\n# ${nodes.length} resource${nodes.length!==1?'s':''} across ${Object.keys(byCloud).length} cloud${Object.keys(byCloud).length!==1?'s':''}\n\n`;
+  if(nodes.length===0){ main+=`# Add services to the canvas to generate Terraform code.`; return {main,variables:'# No variables needed',outputs:'# No outputs yet'}; }
+  // Providers
+  const clouds=Object.keys(byCloud);
+  main+=`terraform {\n  required_version = ">= 1.5.0"\n  required_providers {\n`;
+  clouds.forEach(c=>{
+    const ps={aws:'    aws = { source = "hashicorp/aws", version = "~> 5.0" }',azure:'    azurerm = { source = "hashicorp/azurerm", version = "~> 3.0" }',gcp:'    google = { source = "hashicorp/google", version = "~> 5.0" }'};
+    main+=ps[c]+'\n';
+  });
+  main+=`  }\n}\n\n`;
+  clouds.forEach(c=>{
+    const cfgs={aws:`provider "aws" {\n  region = var.aws_region\n}\n`,azure:`provider "azurerm" {\n  features {}\n}\n`,gcp:`provider "google" {\n  project = var.gcp_project\n  region  = var.gcp_region\n}\n`};
+    main+=cfgs[c]+'\n';
+  });
+  // Resources
+  for(const cloud in byCloud){
+    main+=`# ── ${cloud.toUpperCase()} Resources ──────────────────────\n\n`;
+    byCloud[cloud].forEach(node=>{
+      main+=`resource "${node.svc.tf}" "${sanitize(node.label)}" {\n`;
+      main+=getAttrs(node.svc.id,sanitize(node.label),cloud);
+      main+=`}\n\n`;
+    });
+  }
+  // Variables
+  let variables=`# Variables\n\n`;
+  if(byCloud.aws) variables+=`variable "aws_region" {\n  type    = string\n  default = "us-east-1"\n}\n\n`;
+  if(byCloud.azure) variables+=`variable "azure_location" {\n  type    = string\n  default = "East US"\n}\n\n`;
+  if(byCloud.gcp){ variables+=`variable "gcp_project" {\n  type = string\n}\n\nvariable "gcp_region" {\n  type    = string\n  default = "us-central1"\n}\n\n`; }
+  variables+=`variable "environment" {\n  type    = string\n  default = "production"\n}`;
+  // Outputs
+  let outputs=`# Outputs\n\n`;
+  nodes.slice(0,8).forEach(n=>{
+    outputs+=`output "${sanitize(n.label)}_id" {\n  value = ${n.svc.tf}.${sanitize(n.label)}.id\n}\n\n`;
+  });
+  return {main,variables,outputs};
+}
+
+function getAttrs(id,name,cloud){
+  const i='  ';
+  const m={
+    ec2:`${i}ami           = var.ami_id\n${i}instance_type = "t3.micro"\n${i}tags = { Name = "${name}", Env = var.environment }\n`,
+    lambda:`${i}function_name = "${name}"\n${i}role          = aws_iam_role.lambda.arn\n${i}runtime       = "nodejs18.x"\n${i}handler       = "index.handler"\n${i}filename      = "function.zip"\n`,
+    s3:`${i}bucket        = "${name}-bucket"\n${i}force_destroy = false\n${i}versioning { enabled = true }\n${i}tags = { Name = "${name}" }\n`,
+    rds:`${i}identifier     = "${name}-db"\n${i}engine         = "mysql"\n${i}engine_version = "8.0"\n${i}instance_class = "db.t3.micro"\n${i}username       = var.db_user\n${i}password       = var.db_pass\n${i}skip_final_snapshot = true\n`,
+    dynamodb:`${i}name         = "${name}"\n${i}billing_mode = "PAY_PER_REQUEST"\n${i}hash_key     = "id"\n${i}attribute { name = "id" type = "S" }\n`,
+    vpc:`${i}cidr_block           = "10.0.0.0/16"\n${i}enable_dns_hostnames = true\n${i}tags = { Name = "${name}" }\n`,
+    eks:`${i}name     = "${name}"\n${i}role_arn = aws_iam_role.eks.arn\n${i}version  = "1.29"\n${i}vpc_config { subnet_ids = var.subnets }\n`,
+    sqs:`${i}name = "${name}-queue"\n${i}message_retention_seconds = 86400\n`,
+    az_vm:`${i}name                  = "${name}"\n${i}resource_group_name   = azurerm_resource_group.main.name\n${i}location              = var.azure_location\n${i}size                  = "Standard_B1s"\n${i}admin_username        = "adminuser"\n`,
+    az_functions:`${i}name                = "${name}"\n${i}resource_group_name = azurerm_resource_group.main.name\n${i}location            = var.azure_location\n${i}service_plan_id     = azurerm_service_plan.main.id\n`,
+    az_blob:`${i}name                     = "${name}sa"\n${i}resource_group_name      = azurerm_resource_group.main.name\n${i}location                 = var.azure_location\n${i}account_tier             = "Standard"\n${i}account_replication_type = "GRS"\n`,
+    gce:`${i}name         = "${name}"\n${i}machine_type = "e2-micro"\n${i}zone         = "${cloud==='gcp'?'us-central1-a':''}"\n${i}boot_disk { initialize_params { image = "debian-cloud/debian-11" } }\n${i}network_interface { network = "default" access_config {} }\n`,
+    gcf:`${i}name    = "${name}"\n${i}runtime = "nodejs18"\n${i}region  = var.gcp_region\n${i}build_config { runtime = "nodejs18" entry_point = "handler"\n${i}  source { storage_source { bucket = google_storage_bucket.main.name object = "fn.zip" } } }\n`,
+    gcs:`${i}name     = "${name}-bucket"\n${i}location = var.gcp_region\n${i}versioning { enabled = true }\n`,
+  };
+  return m[id]||`${i}# Configure ${id} — refer to Terraform docs\n`;
+}
+
+// ══════════════════════════════════════════════════════
+//  CANVAS / PAN / ZOOM
+// ══════════════════════════════════════════════════════
+function applyTransform(){
+  document.getElementById('grid').style.transform=`translate(${canvasOff.x}px,${canvasOff.y}px) scale(${zoom})`;
+}
+
+function updateStats(){
+  const clouds=[...new Set(nodes.map(n=>n.cloud))];
+  document.getElementById('s-nodes').textContent=nodes.length;
+  document.getElementById('s-edges').textContent=conns.length;
+  document.getElementById('s-clouds').textContent=clouds.length?clouds.map(c=>c.toUpperCase()).join('+'):'—';
+  updateTransPanel();
+}
+
+// ══════════════════════════════════════════════════════
+//  HISTORY
+// ══════════════════════════════════════════════════════
+function saveHist(){
+  history.push({nodes:JSON.parse(JSON.stringify(nodes)),conns:JSON.parse(JSON.stringify(conns))});
+  if(history.length>30) history.shift();
+}
+function undo(){
+  if(!history.length) return;
+  const s=history.pop();
+  nodes=s.nodes; conns=s.conns;
+  document.querySelectorAll('.node').forEach(el=>el.remove());
+  nodes.forEach(n=>{ n.svc=getAllSvcs(n.cloud).find(s=>s.id===n.svcId); renderNode(n); });
+  renderConns(); updateStats();
+  if(nodes.length===0) document.getElementById('hint').style.display='';
+  toast('Undone');
+}
+
+// ══════════════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════════════
+function sanitize(s){ return s.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/^_+|_+$/g,'')||'resource'; }
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('in');
+  setTimeout(()=>t.classList.remove('in'),2200);
+}
+function highlight(code){
+  return code
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/(#[^\n]*)/g,'<span class="tc">$1</span>')
+    .replace(/\b(resource|variable|output|provider|terraform|required_providers|required_version|source|version|type|default|features|billing_mode|hash_key|attribute|boot_disk|initialize_params|network_interface|access_config|build_config)\b/g,'<span class="tk">$1</span>')
+    .replace(/"([^"\n]+)"/g,'<span class="ts">"$1"</span>')
+    .replace(/\b(true|false|null)\b/g,'<span class="tv">$1</span>');
+}
+
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  renderSidebar();
+
+  // Source/target cloud switching
+  function updateCloudPills(){
+    document.getElementById('src-label').textContent=srcCloud.toUpperCase();
+    document.getElementById('src-cloud-pill').className=`cloud-pill ${srcCloud} active`;
+    document.getElementById('tgt-label').textContent=tgtCloud.toUpperCase();
+    document.getElementById('tgt-cloud-pill').className=`cloud-pill ${tgtCloud} active`;
+    updateTransPanel();
+    // Update translate buttons
+    renderTransButtons();
+  }
+  function renderTransButtons(){
+    const colors={aws:'var(--aws)',azure:'var(--azure)',gcp:'var(--gcp)'};
+    const targets=['aws','azure','gcp'].filter(c=>c!==srcCloud);
+    let html='';
+    targets.forEach(t=>{
+      const names={aws:'Amazon Web Services',azure:'Microsoft Azure',gcp:'Google Cloud'};
+      const cls=`to-${t}`;
+      html+=`<button class="trans-btn ${cls}" data-tgt="${t}">Translate to ${names[t]}</button>`;
+    });
+    const cont=document.getElementById('trans-buttons');
+    cont.innerHTML=html;
+    cont.querySelectorAll('.trans-btn').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        tgtCloud=btn.dataset.tgt;
+        document.getElementById('tc-tgt-name').textContent=tgtCloud.toUpperCase();
+        document.getElementById('tc-tgt-name').style.color=`var(--${tgtCloud})`;
+        document.getElementById('tgt-label').textContent=tgtCloud.toUpperCase();
+        document.getElementById('tgt-cloud-pill').className=`cloud-pill ${tgtCloud} active`;
+        doTranslate();
+      });
+    });
+  }
+
+  document.getElementById('swap-btn').addEventListener('click',()=>{
+    [srcCloud,tgtCloud]=[tgtCloud,srcCloud];
+    updateCloudPills();
+  });
+
+  renderTransButtons();
+
+  // Cloud filter
+  document.querySelectorAll('.cf-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const c=btn.dataset.cf;
+      cfFilter[c]=!cfFilter[c];
+      btn.classList.toggle('on',cfFilter[c]);
+      renderSidebar(document.getElementById('svc-search').value);
+    });
+  });
+
+  // Search
+  document.getElementById('svc-search').addEventListener('input',e=>renderSidebar(e.target.value));
+
+  // Canvas drop
+  const canvasEl=document.getElementById('canvas');
+  canvasEl.addEventListener('dragover',e=>e.preventDefault());
+  canvasEl.addEventListener('drop',e=>{
+    e.preventDefault();
+    const svcId=e.dataTransfer.getData('svcId'), cloud=e.dataTransfer.getData('cloud');
+    if(!svcId) return;
+    const r=canvasEl.getBoundingClientRect();
+    const x=(e.clientX-r.left-canvasOff.x)/zoom, y=(e.clientY-r.top-canvasOff.y)/zoom;
+    addNode(svcId,cloud,x-60,y-40);
+  });
+
+  // Canvas pan
+  canvasEl.addEventListener('mousedown',e=>{
+    if(e.target===canvasEl||e.target.id==='grid'||e.target.id==='svg-layer'){
+      isPan=true;
+      panStart={x:e.clientX-canvasOff.x,y:e.clientY-canvasOff.y};
+      canvasEl.style.cursor='grabbing';
+      deselectAll();
+    }
+  });
+  document.addEventListener('mousemove',e=>{
+    if(isPan){ canvasOff={x:e.clientX-panStart.x,y:e.clientY-panStart.y}; applyTransform(); }
+    if(isDrag&&selNode){
+      const r=canvasEl.getBoundingClientRect();
+      selNode.x=(e.clientX-r.left-canvasOff.x)/zoom-dragOff.x;
+      selNode.y=(e.clientY-r.top-canvasOff.y)/zoom-dragOff.y;
+      selNode.x=Math.max(0,selNode.x); selNode.y=Math.max(0,selNode.y);
+      const el=document.getElementById(selNode.id);
+      if(el){el.style.left=selNode.x+'px';el.style.top=selNode.y+'px';}
+      renderConns();
+    }
+  });
+  document.addEventListener('mouseup',e=>{
+    if(isPan){isPan=false;canvasEl.style.cursor='';}
+    if(isDrag){isDrag=false;}
+    if(connStart){connStart=null;canvasEl.style.cursor='';}
+  });
+  canvasEl.addEventListener('wheel',e=>{
+    e.preventDefault();
+    zoom=Math.max(.25,Math.min(2,zoom+(e.deltaY<0?.1:-.1)));
+    applyTransform();
+    document.getElementById('zoom-val').textContent=Math.round(zoom*100)+'%';
+  },{passive:false});
+
+  // Tools
+  document.querySelectorAll('.tool[data-tool]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      curTool=btn.dataset.tool;
+      document.querySelectorAll('.tool[data-tool]').forEach(b=>b.classList.remove('on'));
+      btn.classList.add('on');
+    });
+  });
+  document.getElementById('t-undo').addEventListener('click',undo);
+  document.getElementById('t-zin').addEventListener('click',()=>{zoom=Math.min(2,zoom+.1);applyTransform();document.getElementById('zoom-val').textContent=Math.round(zoom*100)+'%';});
+  document.getElementById('t-zout').addEventListener('click',()=>{zoom=Math.max(.25,zoom-.1);applyTransform();document.getElementById('zoom-val').textContent=Math.round(zoom*100)+'%';});
+
+  // Clear
+  document.getElementById('btn-clear-all').addEventListener('click',()=>{
+    if(!nodes.length) return;
+    saveHist();
+    nodes=[]; conns=[];
+    document.querySelectorAll('.node').forEach(e=>e.remove());
+    renderConns(); updateStats();
+    document.getElementById('hint').style.display='';
+    document.getElementById('mapping-result').classList.remove('show');
+    document.getElementById('props-panel').classList.remove('show');
+    toast('Canvas cleared');
+  });
+
+  // Apply translation
+  document.getElementById('mr-apply').addEventListener('click',applyTranslation);
+
+  // Props close
+  document.getElementById('props-close').addEventListener('click',()=>{
+    document.getElementById('props-panel').classList.remove('show');
+    deselectAll();
+  });
+
+  // Terraform modal
+  let curTab='main';
+  document.getElementById('btn-tf').addEventListener('click',()=>{
+    tfTabs=genTf();
+    showTfTab('main');
+    document.getElementById('tf-modal').classList.add('show');
+  });
+  document.getElementById('tf-close').addEventListener('click',()=>document.getElementById('tf-modal').classList.remove('show'));
+  document.getElementById('tf-modal').addEventListener('click',e=>{if(e.target.id==='tf-modal') document.getElementById('tf-modal').classList.remove('show');});
+  document.querySelectorAll('.mtab').forEach(tab=>{
+    tab.addEventListener('click',()=>{
+      document.querySelectorAll('.mtab').forEach(t=>t.classList.remove('on'));
+      tab.classList.add('on');
+      showTfTab(tab.dataset.tab);
+    });
+  });
+  function showTfTab(tab){
+    curTab=tab;
+    document.getElementById('tf-pre').innerHTML=highlight(tfTabs[tab]||'');
+  }
+  document.getElementById('tf-copy').addEventListener('click',()=>{
+    navigator.clipboard.writeText(document.getElementById('tf-pre').textContent).then(()=>toast('Copied!'));
+  });
+  document.getElementById('tf-dl').addEventListener('click',()=>{
+    const blob=new Blob([document.getElementById('tf-pre').textContent],{type:'text/plain'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=curTab+'.tf'; a.click();
+    toast('Downloaded '+curTab+'.tf');
+  });
+
+  // Keyboard
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape') deselectAll();
+    if((e.metaKey||e.ctrlKey)&&e.key==='z'){e.preventDefault();undo();}
+    if(e.key==='Delete'&&selNode) deleteNode(selNode.id);
+    if(e.key==='v') document.querySelector('.tool[data-tool="select"]')?.click();
+    if(e.key==='c') document.querySelector('.tool[data-tool="connect"]')?.click();
+  });
+
+  updateStats();
+});
+</script>
+</body>
+</html>
