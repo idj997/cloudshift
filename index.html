@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CloudShift — Visual Cloud Architecture Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- Top Navigation -->
+<nav class="topbar">
+  <div class="topbar-left">
+    <div class="logo">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect x="2" y="8" width="10" height="10" rx="2" fill="#4AFFA4"/>
+        <rect x="16" y="2" width="10" height="10" rx="2" fill="#4D9FFF"/>
+        <rect x="16" y="16" width="10" height="10" rx="2" fill="#FF6B6B"/>
+        <path d="M12 13h4M18 12V8" stroke="#666" stroke-width="1.5"/>
+      </svg>
+      <span class="logo-text">CloudShift</span>
+    </div>
+    <div class="project-name" contenteditable="true" spellcheck="false">Untitled Architecture</div>
+  </div>
+  <div class="topbar-center">
+    <div class="cloud-tabs">
+      <button class="cloud-tab active" data-cloud="aws">
+        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original.svg" width="16" height="16" alt="AWS" onerror="this.style.display='none'">
+        AWS
+      </button>
+      <div class="tab-arrow">→</div>
+      <button class="cloud-tab" data-cloud="azure">
+        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/azure/azure-original.svg" width="16" height="16" alt="Azure" onerror="this.style.display='none'">
+        Azure
+      </button>
+      <button class="cloud-tab" data-cloud="gcp">
+        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/googlecloud/googlecloud-original.svg" width="16" height="16" alt="GCP" onerror="this.style.display='none'">
+        GCP
+      </button>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn-ghost" id="btn-terraform">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2h4v4H2zM8 2h4v4H8zM2 8h4v4H2zM8 8h4v4H8z" stroke="currentColor" stroke-width="1.2"/></svg>
+      Terraform
+    </button>
+    <button class="btn-ghost" id="btn-translate">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 4h8M5 2v2M3 6c0 2 2 4 4 4M7 6c0 1.5.5 2.5 2 3.5M8 10h5M10 8v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      Translate
+    </button>
+    <button class="btn-primary" id="btn-deploy">Deploy →</button>
+  </div>
+</nav>
+
+<!-- Main Layout -->
+<div class="app-layout">
+  <!-- Left Sidebar: Component Library -->
+  <aside class="sidebar-left">
+    <div class="sidebar-header">
+      <span>Components</span>
+      <div class="cloud-badge" id="sidebar-cloud-badge">AWS</div>
+    </div>
+    <div class="search-box">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="#666" stroke-width="1.2"/><path d="M9 9l3 3" stroke="#666" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <input type="text" placeholder="Search services..." id="service-search">
+    </div>
+    <div class="component-categories" id="component-list">
+      <!-- Populated by JS -->
+    </div>
+  </aside>
+
+  <!-- Canvas Area -->
+  <main class="canvas-container">
+    <div class="canvas-toolbar">
+      <button class="tool-btn active" data-tool="select" title="Select">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l4 10 2-4 4-2L2 2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="tool-btn" data-tool="connect" title="Connect">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="3" cy="7" r="2" stroke="currentColor" stroke-width="1.2"/><circle cx="11" cy="7" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M5 7h4" stroke="currentColor" stroke-width="1.2"/></svg>
+      </button>
+      <button class="tool-btn" data-tool="text" title="Label">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3h10M7 3v8M5 11h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="toolbar-divider"></div>
+      <button class="tool-btn" id="btn-undo" title="Undo">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 5H8a4 4 0 010 8H4M2 5L5 2M2 5l3 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="tool-btn" id="btn-clear" title="Clear canvas">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="toolbar-divider"></div>
+      <div class="zoom-controls">
+        <button class="tool-btn" id="btn-zoom-out">−</button>
+        <span class="zoom-display" id="zoom-display">100%</span>
+        <button class="tool-btn" id="btn-zoom-in">+</button>
+      </div>
+    </div>
+    
+    <div class="canvas" id="canvas">
+      <div class="canvas-grid" id="canvas-grid">
+        <!-- Nodes rendered here -->
+        <div class="canvas-empty-hint" id="canvas-hint">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect x="4" y="12" width="14" height="14" rx="3" stroke="#444" stroke-width="1.5"/><rect x="22" y="4" width="14" height="14" rx="3" stroke="#444" stroke-width="1.5"/><rect x="22" y="22" width="14" height="14" rx="3" stroke="#444" stroke-width="1.5"/><path d="M18 19h4M29 18V14" stroke="#444" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <p>Drag components from the left panel<br>or click to add to canvas</p>
+        </div>
+        <svg class="connections-svg" id="connections-svg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></svg>
+      </div>
+    </div>
+    
+    <!-- Mini Map -->
+    <div class="mini-map" id="mini-map">
+      <div class="mini-map-title">Map</div>
+      <canvas id="mini-canvas" width="120" height="80"></canvas>
+    </div>
+  </main>
+
+  <!-- Right Panel: Properties & Translation -->
+  <aside class="sidebar-right" id="sidebar-right">
+    <!-- Default: Translation Panel -->
+    <div class="panel" id="panel-translate">
+      <div class="panel-header">Cross-Cloud Translation</div>
+      <div class="translate-current">
+        <div class="translate-label">Source Architecture</div>
+        <div class="translate-cloud-info" id="translate-source">
+          <div class="cloud-dot aws"></div>
+          <span id="source-cloud-name">Amazon Web Services</span>
+        </div>
+        <div class="translate-stats" id="translate-stats">
+          <span id="node-count">0 services</span>
+          <span id="connection-count">0 connections</span>
+        </div>
+      </div>
+      
+      <div class="translate-arrows">
+        <div class="translate-arrow-line"></div>
+        <div class="translate-icon">⇄</div>
+        <div class="translate-arrow-line"></div>
+      </div>
+      
+      <div class="translate-targets">
+        <div class="translate-label">Translate to</div>
+        <div class="target-options">
+          <button class="target-btn" data-target="azure">
+            <div class="cloud-dot azure"></div>
+            <div class="target-info">
+              <span class="target-name">Microsoft Azure</span>
+              <span class="target-desc">Full service mapping</span>
+            </div>
+            <span class="target-arrow">→</span>
+          </button>
+          <button class="target-btn" data-target="gcp">
+            <div class="cloud-dot gcp"></div>
+            <div class="target-info">
+              <span class="target-name">Google Cloud</span>
+              <span class="target-desc">Full service mapping</span>
+            </div>
+            <span class="target-arrow">→</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="translate-result hidden" id="translate-result">
+        <div class="result-header">
+          <span class="result-title">Translation Result</span>
+          <button class="btn-ghost-sm" id="btn-apply-translation">Apply to Canvas</button>
+        </div>
+        <div class="mapping-list" id="mapping-list"></div>
+      </div>
+    </div>
+
+    <!-- Node Properties Panel (shown when node selected) -->
+    <div class="panel hidden" id="panel-properties">
+      <div class="panel-header">
+        <span>Service Properties</span>
+        <button class="panel-close" id="close-properties">✕</button>
+      </div>
+      <div id="properties-content"></div>
+    </div>
+  </aside>
+</div>
+
+<!-- Terraform Modal -->
+<div class="modal-overlay hidden" id="terraform-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" fill="#7B61FF"/><rect x="9" y="2" width="5" height="5" rx="1" fill="#4D9FFF"/><rect x="2" y="9" width="5" height="5" rx="1" fill="#4AFFA4"/><rect x="9" y="9" width="5" height="5" rx="1" fill="#FF6B6B"/></svg>
+        Generated Terraform
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost-sm" id="btn-copy-tf">Copy</button>
+        <button class="btn-ghost-sm" id="btn-download-tf">Download .tf</button>
+        <button class="modal-close" id="close-terraform">✕</button>
+      </div>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" data-tab="main">main.tf</button>
+      <button class="modal-tab" data-tab="variables">variables.tf</button>
+      <button class="modal-tab" data-tab="outputs">outputs.tf</button>
+    </div>
+    <div class="terraform-code" id="terraform-code">
+      <pre id="tf-content"></pre>
+    </div>
+  </div>
+</div>
+
+<!-- Deploy Modal -->
+<div class="modal-overlay hidden" id="deploy-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Deploy Architecture</div>
+      <button class="modal-close" id="close-deploy">✕</button>
+    </div>
+    <div class="deploy-content">
+      <div class="deploy-step active" id="deploy-step-1">
+        <div class="step-num">01</div>
+        <div class="step-content">
+          <div class="step-title">Configure Credentials</div>
+          <div class="step-fields">
+            <div class="field-group">
+              <label>Cloud Provider</label>
+              <select id="deploy-cloud">
+                <option value="aws">Amazon Web Services</option>
+                <option value="azure">Microsoft Azure</option>
+                <option value="gcp">Google Cloud Platform</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label>Access Key / Service Account</label>
+              <input type="password" placeholder="Enter credentials..." id="deploy-key">
+            </div>
+            <div class="field-group">
+              <label>Region</label>
+              <select id="deploy-region">
+                <option>us-east-1</option><option>us-west-2</option><option>eu-west-1</option>
+                <option>ap-south-1</option><option>ap-southeast-1</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn-primary" id="btn-next-deploy">Next →</button>
+        </div>
+      </div>
+      <div class="deploy-step" id="deploy-step-2">
+        <div class="step-num">02</div>
+        <div class="step-content">
+          <div class="step-title">Review & Deploy</div>
+          <div class="deploy-summary" id="deploy-summary"></div>
+          <div class="deploy-actions">
+            <button class="btn-ghost" id="btn-prev-deploy">← Back</button>
+            <button class="btn-primary" id="btn-confirm-deploy">Deploy Infrastructure</button>
+          </div>
+        </div>
+      </div>
+      <div class="deploy-step" id="deploy-step-3">
+        <div class="step-num">03</div>
+        <div class="step-content">
+          <div class="step-title">Deployment Progress</div>
+          <div class="deploy-log" id="deploy-log"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast hidden" id="toast"></div>
+
+<script src="data.js"></script>
+<script src="canvas.js"></script>
+<script src="terraform.js"></script>
+<script src="translate.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
